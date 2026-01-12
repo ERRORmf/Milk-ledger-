@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Milk Ledger</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; background:#f4f4f4; padding:15px; }
+    h2 { text-align:center; }
+    input, select, button { width:100%; padding:10px; margin:5px 0; box-sizing:border-box; }
+    .card { background:white; padding:15px; margin-top:10px; border-radius:8px; }
+    .green{color:green;} .red{color:red;}
+  </style>
+</head>
+<body>
+
+<h2>🥛 Milk Ledger</h2>
+
+<div class="card">
+  <b>Add entry</b>
+  <input type="date" id="date">
+  <select id="milk">
+    <option value="yes">Milk Given</option>
+    <option value="no">No Milk</option>
+  </select>
+  <!-- you usually take 0.5L or 0 -->
+  <input type="number" id="liters" step="0.5" placeholder="Liters (e.g., 0.5 or 0)">
+  <input type="number" id="advance" placeholder="Advance ₹ if any">
+  <button onclick="saveEntry()">Save</button>
+</div>
+
+<div class="card">
+  <b>📊 This week bill (Mon–Sun)</b>
+  <p id="bill">Loading...</p>
+</div>
+
+<div class="card">
+  <b>🕒 History</b>
+  <div id="history">Loading...</div>
+</div>
+
+<script>
+  const RATE_PER_LITRE = 50; // ₹50 per litre => ₹25 per 0.5L
+
+  // load existing data or empty
+  let data = JSON.parse(localStorage.getItem("milk")) || [];
+
+  // save one entry
+  function saveEntry(){
+    const d = document.getElementById("date").value;
+    const milkStatus = document.getElementById("milk").value;
+    const l = parseFloat(document.getElementById("liters").value) || 0;
+    const adv = parseFloat(document.getElementById("advance").value) || 0;
+
+    data.push({ d, milkStatus, l, adv });
+    localStorage.setItem("milk", JSON.stringify(data));
+    show();
+  }
+
+  // returns Monday of current week for given date
+  function getMonday(d){
+    d = new Date(d);
+    const day = d.getDay(); // 0 (Sun) to 6 (Sat)
+    const diff = day === 0 ? -6 : 1 - day; // if Sunday, go back 6 days; else to Monday
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff);
+  }
+
+  // check if a date string falls in this week
+  function isThisWeek(dateStr){
+    const today = new Date();
+    const monday = getMonday(today);
+    const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+    const d = new Date(dateStr);
+    return d >= monday && d <= sunday;
+  }
+
+  // display bill and history
+  function show(){
+    let total = 0, adv = 0, html = "";
+
+    data.forEach(e => {
+      // optional: treat no milk same as 0 liters
+      const amount = e.l * RATE_PER_LITRE;
+      if (isThisWeek(e.d)){
+        total += amount;
+        adv += e.adv;
+      }
+      html += `${e.d} — ${e.l} L — ₹${amount.toFixed(0)} — Adv ₹${e.adv.toFixed(0)}<br>`;
+    });
+
+    const finalPayable = total - adv;
+    document.getElementById("bill").innerHTML =
+      `Milk ₹${total.toFixed(0)}<br>` +
+      `Advance ₹${adv.toFixed(0)}<br>` +
+      `<b>Payable ₹${finalPayable.toFixed(0)}</b>`;
+
+    document.getElementById("history").innerHTML = html || "No entries yet.";
+  }
+
+  show();
+</script>
+</body>
+</html>
